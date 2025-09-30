@@ -32,6 +32,13 @@ func parseInterval(s string) (time.Duration, error) {
 	return 0, fmt.Errorf("unsupported unit: %s", unit)
 }
 
+func formatElapsedTime(elapsed time.Duration) string {
+    hours := int(elapsed.Hours())
+    minutes := int(elapsed.Minutes()) % 60
+    seconds := int(elapsed.Seconds()) % 60
+    return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+}
+
 func runCommand(cmdStr string) {
     cmd := exec.Command("sh", "-c", cmdStr)
     output, err := cmd.CombinedOutput()
@@ -75,13 +82,24 @@ func main() {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	lastResetTime := time.Now()
+	
+	timerTicker := time.NewTicker(time.Second)
+	defer timerTicker.Stop()
+
 	runCommand(*cmdStr)
 
 	for {
 		select {
+		case <-timerTicker.C:
+			elapsed := time.Since(lastResetTime)
+			fmt.Printf("\r\033[K[%s] ", formatElapsedTime(elapsed))
 		case <-ticker.C:
+			lastResetTime = time.Now()
+			fmt.Println()
 			runCommand(*cmdStr)
 		case <-done:
+			fmt.Println()
 			return
 		}
 	}
